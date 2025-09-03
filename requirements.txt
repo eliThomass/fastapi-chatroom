@@ -1,0 +1,17 @@
+# FastAPI
+fastapi
+uvicorn[standard]
+
+# DB
+SQLAlchemy
+psycopg2-binary
+
+# Hashing
+passlib[bcrypt]
+
+# JWT
+python-jose
+
+# Data validation
+pydantic==2.8.2
+
