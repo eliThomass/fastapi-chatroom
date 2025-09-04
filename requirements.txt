@@ -7,10 +7,10 @@ SQLAlchemy==2.0.31
 psycopg2-binary
 
 # Hashing
-passlib[bcrypt]==1.7.4
+passlib
 
 # JWT
-python-jose==3.3.0
+jose
 
 # Data validation
 pydantic==2.8.2
