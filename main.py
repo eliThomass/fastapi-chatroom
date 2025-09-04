@@ -35,25 +35,72 @@ member = []
 
 @app.post("/sign_up")
 async def add_account(account: SignUpBase, db: db_dependency):
+    existing_user = db.query(models.Accounts).filter(
+    (models.Accounts.username == account.username) |
+    (models.Accounts.email == account.email)
+    ).first()
+
+    if existing_user:
+        if existing_user.username == account.username:
+            raise HTTPException(status_code=400, detail="Username already in use")
+        if existing_user.email == account.email:
+            raise HTTPException(status_code=400, detail="Email already in use")
+    
+    db_account = models.Accounts(username=account.username,
+                                email=account.email,
+                                password=auth.get_password_hash(account.password))
+    db.add(db_account)
     try:
-        db_account = models.Accounts(username=account.username,
-                                    email=account.email,
-                                    password=auth.get_password_hash(account.password))
-        db.add(db_account)
         db.commit()
         db.refresh(db_account)
-    except IntegrityError:
+    except IntegrityError as e:
         db.rollback()
-        raise HTTPException(
-            status_code=400,
-            detail="Username or email already registered",
-        )
+        raise HTTPException(status_code=409, detail="Username or email already in use.")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected server error.")
+
     return {
-        "id": db_account.id,
-        "username": db_account.username,
-        "email": db_account.email,
-        "created_at": db_account.created_at.isoformat(),
+    "id": db_account.id,
+    "username": db_account.username,
+    "email": db_account.email,
+    "created_at": db_account.created_at.isoformat(),
     }
+
+@app.get("/sign_in")
+async def add_account(account: SignUpBase, db: db_dependency):
+    existing_user = db.query(models.Accounts).filter(
+    (models.Accounts.username == account.username) |
+    (models.Accounts.email == account.email)
+    ).first()
+
+    if existing_user:
+        if existing_user.username == account.username:
+            raise HTTPException(status_code=400, detail="Username already in use")
+        if existing_user.email == account.email:
+            raise HTTPException(status_code=400, detail="Email already in use")
+    
+    db_account = models.Accounts(username=account.username,
+                                email=account.email,
+                                password=auth.get_password_hash(account.password))
+    db.add(db_account)
+    try:
+        db.commit()
+        db.refresh(db_account)
+    except IntegrityError as e:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Username or email already in use.")
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected server error.")
+
+    return {
+    "id": db_account.id,
+    "username": db_account.username,
+    "email": db_account.email,
+    "created_at": db_account.created_at.isoformat(),
+    }
+    
 
 @app.get("/accounts/{account_id}")
 async def get_account(account_id: int, db: db_dependency):
