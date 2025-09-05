@@ -25,7 +25,7 @@ class SignUpBase(BaseModel):
     email: str
     password: str
 
-class User(BaseModel):
+class UserOut(BaseModel):
     username: str
     email: str | None = None
 
@@ -64,42 +64,7 @@ async def add_account(account: SignUpBase, db: db_dependency):
     "email": db_account.email,
     "created_at": db_account.created_at.isoformat(),
     }
-
-@app.get("/sign_in")
-async def add_account(account: SignUpBase, db: db_dependency):
-    existing_user = db.query(models.Accounts).filter(
-    (models.Accounts.username == account.username) |
-    (models.Accounts.email == account.email)
-    ).first()
-
-    if existing_user:
-        if existing_user.username == account.username:
-            raise HTTPException(status_code=400, detail="Username already in use")
-        if existing_user.email == account.email:
-            raise HTTPException(status_code=400, detail="Email already in use")
     
-    db_account = models.Accounts(username=account.username,
-                                email=account.email,
-                                password=auth.get_password_hash(account.password))
-    db.add(db_account)
-    try:
-        db.commit()
-        db.refresh(db_account)
-    except IntegrityError as e:
-        db.rollback()
-        raise HTTPException(status_code=409, detail="Username or email already in use.")
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(status_code=500, detail="Unexpected server error.")
-
-    return {
-    "id": db_account.id,
-    "username": db_account.username,
-    "email": db_account.email,
-    "created_at": db_account.created_at.isoformat(),
-    }
-    
-
 @app.get("/accounts/{account_id}")
 async def get_account(account_id: int, db: db_dependency):
     result = db.query(models.Accounts).filter(models.Accounts.id == account_id).first()
@@ -116,6 +81,10 @@ async def login_for_access_token(db: db_dependency, form_data: OAuth2PasswordReq
     token = create_access_token(data={"sub" : str(user.id)}, expires_delta=access_token_expires)
     return {"access_token" : token, "token_type" : "bearer"}
 
-@app.get("/users/me/", response_model=User)
-async def read_users_me(current_user: User = Depends(get_current_active_user)):
-    return current_user
+@app.get("/users/me/", response_model=UserOut)
+async def read_users_me(current_user: models.Accounts = Depends(get_current_active_user)):
+    return UserOut(username=current_user.username, email=current_user.email)
+
+@app.post("/gc")
+async def create_group_chat(current_user: models.Accounts = Depends(get_current_active_user)):
+    return {}

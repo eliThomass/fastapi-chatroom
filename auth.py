@@ -13,9 +13,6 @@ import os
 
 load_dotenv()
 
-class UserInDB(BaseModel):
-    hash_pass: str
-
 class Token(BaseModel):
     access_token: str
     token_type: str
@@ -64,7 +61,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     return user
 
 
-async def get_current_active_user(current_user: UserInDB = Depends(get_current_user)):
+async def get_current_active_user(current_user: models.Accounts = Depends(get_current_user)):
     return current_user
 
 
@@ -81,7 +78,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp" : expire})
     encoded_jwt = jwt.encode(to_encode, JWT_SECRET, algorithm=ALGORITHM)
