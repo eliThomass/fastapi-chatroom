@@ -1,23 +1,20 @@
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, APIRouter, status
 from pydantic import BaseModel
 from typing import List, Annotated
 import models, auth
-from database import engine, SessionLocal
+from database import engine, SessionLocal, get_db
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
+from auth import verify_password, create_access_token, get_user_by_username
+from fastapi.security import OAuth2PasswordRequestForm
+from datetime import timedelta
 
 
 app = FastAPI()
+router = APIRouter()
 models.Base.metadata.create_all(bind=engine)
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 db_dependency = Annotated[Session, Depends(get_db)]
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -108,4 +105,14 @@ async def get_account(account_id: int, db: db_dependency):
     if not result:
         raise HTTPException(status_code=404, detail='Account not found')
     return result.username
+
+@router.post("/token")
+def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    user = get_user_by_username(db, form.username)
+    if not user or not verify_password(form.password, user.password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Incorrect username or password",
+                            headers={"WWW-Authenticate": "Bearer"})
+    token = create_access_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=30))
+    return {"access_token": token, "token_type": "bearer"}
 
