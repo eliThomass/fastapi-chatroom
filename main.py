@@ -7,13 +7,14 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
-from auth import verify_password, create_access_token, get_user_by_username
+from auth import (create_access_token, authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, Token, get_current_user,
+                  get_current_active_user
+)
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
 
 
 app = FastAPI()
-router = APIRouter()
 models.Base.metadata.create_all(bind=engine)
 
 db_dependency = Annotated[Session, Depends(get_db)]
@@ -106,13 +107,15 @@ async def get_account(account_id: int, db: db_dependency):
         raise HTTPException(status_code=404, detail='Account not found')
     return result.username
 
-@router.post("/token")
-def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = get_user_by_username(db, form.username)
-    if not user or not verify_password(form.password, user.password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED,
-                            detail="Incorrect username or password",
-                            headers={"WWW-Authenticate": "Bearer"})
-    token = create_access_token({"sub": str(user.id)}, expires_delta=timedelta(minutes=30))
-    return {"access_token": token, "token_type": "bearer"}
+@app.post("/token", response_model=Token)
+async def login_for_access_token(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(db, form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password", headers={"WWW-Authenciate" : "Bearer"})
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    token = create_access_token(data={"sub" : str(user.id)}, expires_delta=access_token_expires)
+    return {"access_token" : token, "token_type" : "bearer"}
 
+@app.get("/users/me/", response_model=User)
+async def read_users_me(current_user: User = Depends(get_current_active_user)):
+    return current_user
