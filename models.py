@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, PrimaryKeyConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, DateTime, PrimaryKeyConstraint, UniqueConstraint
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database import Base
@@ -34,6 +34,10 @@ class Chats(Base):
     name = Column(String, nullable=False)
     created_by = Column(Integer, ForeignKey('account.id', ondelete="CASCADE"), nullable=False)
     created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint('name', 'created_by', name='uq_chat_name_creator'),
+    )
 
     creator = relationship("Accounts", back_populates="chats_created", passive_deletes=True)
     members = relationship("ChatMembers", back_populates="chat", cascade="all, delete-orphan")

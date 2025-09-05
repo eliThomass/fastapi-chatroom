@@ -25,6 +25,15 @@ class SignUpBase(BaseModel):
     email: str
     password: str
 
+class GroupChatBase(BaseModel):
+    name: str
+
+class GroupChatOut(BaseModel):
+    id: int
+    name: str
+    created_by: int
+    created_at: str
+
 class UserOut(BaseModel):
     username: str
     email: str | None = None
@@ -44,13 +53,13 @@ async def add_account(account: SignUpBase, db: db_dependency):
         if existing_user.email == account.email:
             raise HTTPException(status_code=400, detail="Email already in use")
     
-    db_account = models.Accounts(username=account.username,
+    new_chat = models.Accounts(username=account.username,
                                 email=account.email,
                                 password=auth.get_password_hash(account.password))
-    db.add(db_account)
+    db.add(new_chat)
     try:
         db.commit()
-        db.refresh(db_account)
+        db.refresh(new_chat)
     except IntegrityError as e:
         db.rollback()
         raise HTTPException(status_code=409, detail="Username or email already in use.")
@@ -59,10 +68,10 @@ async def add_account(account: SignUpBase, db: db_dependency):
         raise HTTPException(status_code=500, detail="Unexpected server error.")
 
     return {
-    "id": db_account.id,
-    "username": db_account.username,
-    "email": db_account.email,
-    "created_at": db_account.created_at.isoformat(),
+        "id": new_chat.id,
+        "username": new_chat.username,
+        "email": new_chat.email,
+        "created_at": new_chat.created_at.isoformat(),
     }
     
 @app.get("/accounts/{account_id}")
@@ -85,6 +94,26 @@ async def login_for_access_token(db: db_dependency, form_data: OAuth2PasswordReq
 async def read_users_me(current_user: models.Accounts = Depends(get_current_active_user)):
     return UserOut(username=current_user.username, email=current_user.email)
 
-@app.post("/gc")
-async def create_group_chat(current_user: models.Accounts = Depends(get_current_active_user)):
-    return {}
+@app.post("/gc", response_model=GroupChatOut)
+async def create_group_chat(db:db_dependency, group_chat: GroupChatBase, current_user: models.Accounts = Depends(get_current_active_user)):
+    existing = db.query(models.Chats).filter_by(
+        name=group_chat.name, created_by=current_user.id
+    ).first()
+    if existing:
+        raise HTTPException(409, "Chat with that name already exists")
+    new_chat = models.Chats(name=group_chat.name, created_by=current_user.id)
+    db.add(new_chat)
+    try:
+        db.flush()
+        db.add(models.ChatMembers(account_id=current_user.id, chat_id=new_chat.id))
+        db.commit()
+        db.refresh(new_chat)
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected server error.")
+    return {
+        "id": new_chat.id,
+        "name": new_chat.name,
+        "created_by" : new_chat.created_by,
+        "created_at": new_chat.created_at.isoformat(),
+    }
