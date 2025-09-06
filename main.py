@@ -153,28 +153,28 @@ async def send_message(db: db_dependency, chat_id: int, message: MessageBase, cu
     if not member:
         raise HTTPException(status_code=403, detail="Not a member of this chat.")
     
-    inv = models.Messages(
+    m = models.Messages(
         account_id = current_user.id,
         chat_id = chat_id,
         text = message.text,
         author_username = current_user.username
     )
 
-    db.add(inv)
+    db.add(m)
     try:
         db.commit()
-        db.refresh(inv)
+        db.refresh(m)
     except:
         db.rollback()
         raise HTTPException(status_code=500, detail="Unexpected server error.")
     
     return {
-        "id" : inv.id,
-        "account_id" : inv.account_id,
-        "chat_id" : inv.chat_id,
-        "text" : inv.text,
-        "created_at" : inv.created_at.isoformat(),
-        "author_username" : inv.author_username
+        "id" : m.id,
+        "account_id" : m.account_id,
+        "chat_id" : m.chat_id,
+        "text" : m.text,
+        "created_at" : m.created_at.isoformat(),
+        "author_username" : m.author_username
     }
 
 @app.get("/gc/{chat_id}/messages", response_model=List[MessageOut])
@@ -189,14 +189,14 @@ async def get_message(db: db_dependency, chat_id: int, limit: int = 50, current_
 
     out = []
     
-    for inv in rows:
+    for m in rows:
         out.append({
-            "id" : inv.id,
-            "account_id" : inv.account_id if inv.account_id is not None else 0,
-            "chat_id" : inv.chat_id,
-            "text" : inv.text,
-            "created_at" : inv.created_at.isoformat(),
-            "author_username" : inv.author_username
+            "id" : m.id,
+            "account_id" : m.account_id if m.account_id is not None else 0,
+            "chat_id" : m.chat_id,
+            "text" : m.text,
+            "created_at" : m.created_at.isoformat(),
+            "author_username" : m.author_username
         })
 
     return list(reversed(out))
@@ -211,27 +211,47 @@ async def create_invite(db: db_dependency, invite: InviteBase, current_user: mod
     if not receiver:
         raise HTTPException(status_code=404, detail="Account not found.")
     
-    inv = models.Invites(
+    m = models.Invites(
         sender_id = current_user.id,
         receiver_id = invite.receiver_id,
         chat_id = invite.chat_id,
         text = invite.text
     )
     
-    db.add(inv)
+    db.add(m)
     try:
         db.commit()
-        db.refresh(inv)
+        db.refresh(m)
     except:
         db.rollback()
         raise HTTPException(status_code=500, detail="Unexpected server error.")
     
     return {
-        "id" : inv.id,
-        "sender_id" : inv.sender_id,
-        "receiver_id" : inv.receiver_id,
-        "chat_id" : inv.chat_id,
-        "text" : inv.text,
-        "status" : inv.status,
-        "created_at" : inv.created_at.isoformat()
+        "id" : m.id,
+        "sender_id" : m.sender_id,
+        "receiver_id" : m.receiver_id,
+        "chat_id" : m.chat_id,
+        "text" : m.text,
+        "status" : m.status,
+        "created_at" : m.created_at.isoformat()
     }
+
+@app.get("/invites", response_model=List[InviteOut])
+async def get_invites(db: db_dependency, limit: int = 50, current_user: models.Accounts = Depends(get_current_active_user)):  
+    invites = db.query(models.Invites).filter(models.Invites.receiver_id == current_user.id)
+    rows = invites.order_by(models.Invites.created_at.desc()).limit(min(max(limit, 1), 200)).all()
+
+    out = []
+    
+    for inv in rows:
+        out.append({
+            "id" : inv.id,
+            "sender_id" : inv.sender_id,
+            "receiver_id" : inv.receiver_id,
+            "chat_id" : inv.chat_id,
+            "text" : inv.text,
+            "status" : inv.status,
+            "created_at" : inv.created_at.isoformat()
+        })
+
+    return list(reversed(out))
