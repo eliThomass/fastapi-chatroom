@@ -136,34 +136,57 @@ async def send_message(db: db_dependency, chat_id: int, message: MessageBase, cu
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found.")
     
-    member = db.query(models.ChatMembers).filter_by(account_id=current_user.id, chat_id=chat_id)
-
+    member = db.query(models.ChatMembers).filter_by(account_id=current_user.id, chat_id=chat_id).first()
     if not member:
         raise HTTPException(status_code=403, detail="Not a member of this chat.")
     
-    msg = models.Messages(
+    m = models.Messages(
         account_id = current_user.id,
         chat_id = chat_id,
         text = message.text,
         author_username = current_user.username
     )
 
-    db.add(msg)
+    db.add(m)
     try:
         db.commit()
-        db.refresh(msg)
+        db.refresh(m)
     except:
         db.rollback()
         raise HTTPException(status_code=500, detail="Unexpected server error.")
     
     return {
-        "id" : msg.id,
-        "account_id" : msg.account_id,
-        "chat_id" : msg.chat_id,
-        "text" : msg.text,
-        "created_at" : msg.created_at.isoformat(),
-        "author_username" : msg.author_username
+        "id" : m.id,
+        "account_id" : m.account_id,
+        "chat_id" : m.chat_id,
+        "text" : m.text,
+        "created_at" : m.created_at.isoformat(),
+        "author_username" : m.author_username
     }
+
+@app.get("/gc/{chat_id}/messages", response_model=list[MessageOut])
+async def get_message(db: db_dependency, chat_id: int, limit: int = 50, current_user: models.Accounts = Depends(get_current_active_user)):
+    member = db.query(models.ChatMembers).filter_by(account_id=current_user.id, chat_id=chat_id).first()
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a member of this chat.")
+    
+    messages = db.query(models.Messages).filter(models.Messages.chat_id == chat_id)
+
+    rows = messages.order_by(models.Messages.created_at.desc()).limit(min(max(limit, 1), 200)).all()
+
+    out = []
+    
+    for m in rows:
+        out.append({
+            "id" : m.id,
+            "account_id" : m.account_id if m.account_id is not None else 0,
+            "chat_id" : m.chat_id,
+            "text" : m.text,
+            "created_at" : m.created_at.isoformat(),
+            "author_username" : m.author_username
+        })
+
+    return list(reversed(out))
 
 
 
