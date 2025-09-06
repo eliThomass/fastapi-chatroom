@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, APIRouter, status
+from fastapi import FastAPI, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import List, Annotated
 import models, auth
@@ -7,7 +7,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
-from auth import (create_access_token, authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, Token, get_current_user,
+from auth import (create_access_token, authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, Token,
                   get_current_active_user
 )
 from fastapi.security import OAuth2PasswordRequestForm
@@ -37,6 +37,17 @@ class GroupChatOut(BaseModel):
 class UserOut(BaseModel):
     username: str
     email: str | None = None
+
+class MessageBase(BaseModel):
+    text: str
+
+class MessageOut(BaseModel):
+    id: int
+    chat_id: int
+    account_id: int
+    text: str
+    created_at: str
+    author_username: str
 
 member = []
 
@@ -117,3 +128,42 @@ async def create_group_chat(db:db_dependency, group_chat: GroupChatBase, current
         "created_by" : new_chat.created_by,
         "created_at": new_chat.created_at.isoformat(),
     }
+
+@app.post("/gc/{chat_id}/messages", response_model=MessageOut)
+async def send_message(db: db_dependency, chat_id: int, message: MessageBase, current_user: models.Accounts = Depends(get_current_active_user)):
+    chat = db.query(models.Chats).filter(chat_id == models.Chats.id).first()
+
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found.")
+    
+    member = db.query(models.ChatMembers).filter_by(account_id=current_user.id, chat_id=chat_id)
+
+    if not member:
+        raise HTTPException(status_code=403, detail="Not a member of this chat.")
+    
+    msg = models.Messages(
+        account_id = current_user.id,
+        chat_id = chat_id,
+        text = message.text,
+        author_username = current_user.username
+    )
+
+    db.add(msg)
+    try:
+        db.commit()
+        db.refresh(msg)
+    except:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected server error.")
+    
+    return {
+        "id" : msg.id,
+        "account_id" : msg.account_id,
+        "chat_id" : msg.chat_id,
+        "text" : msg.text,
+        "created_at" : msg.created_at.isoformat(),
+        "author_username" : msg.author_username
+    }
+
+
+
