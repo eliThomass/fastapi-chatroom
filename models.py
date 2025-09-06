@@ -27,6 +27,18 @@ class Accounts(Base):
 
     messages = relationship("Messages", back_populates="author")
 
+    sent_invites = relationship("Invites",
+                                foreign_keys="Invites.sender_id",
+                                back_populates="sender",
+                                cascade="all, delete-orphan",
+                                passive_deletes=True)
+    
+    received_invites = relationship("Invites",
+                                    foreign_keys="Invites.receiver_id",
+                                    back_populates="receiver",
+                                    cascade="all, delete-orphan",
+                                    passive_deletes=True,)
+
 class Chats(Base):
     __tablename__ = 'group_chat'
 
@@ -42,6 +54,7 @@ class Chats(Base):
     creator = relationship("Accounts", back_populates="chats_created", passive_deletes=True)
     members = relationship("ChatMembers", back_populates="chat", cascade="all, delete-orphan")
     messages = relationship("Messages", back_populates="chat", cascade="all, delete-orphan")
+    invites = relationship("Invites", back_populates="chat", cascade="all, delete-orphan", passive_deletes=True)
 
 class ChatMembers(Base):
     __tablename__ = 'gc_member'
@@ -67,6 +80,23 @@ class Messages(Base):
 
     author = relationship("Accounts", back_populates="messages", passive_deletes=True)
     chat = relationship("Chats", back_populates="messages")
+
+class Invites(Base):
+    __tablename__ = 'invite'
+
+    id = Column(Integer, primary_key=True)
+
+    sender_id = Column(Integer, ForeignKey('account.id', ondelete='SET NULL'), index=True, nullable=True)
+    receiver_id = Column(Integer, ForeignKey('account.id', ondelete='SET NULL'), index=True, nullable=True)
+    chat_id = Column(Integer, ForeignKey('group_chat.id', ondelete="CASCADE"), index=True, nullable=False)
+
+    text = Column(String, nullable=False)
+    status = Column(String, nullable=False, default='pending')
+    created_at = Column(DateTime, default=func.now(), nullable=False)
+
+    sender = relationship("Accounts", foreign_keys=[sender_id], back_populates="sent_invites", passive_deletes=True)
+    receiver = relationship("Accounts", foreign_keys=[receiver_id], back_populates="received_invites", passive_deletes=True)
+    chat = relationship("Chats", back_populates="invites", passive_deletes=True)
 
 Index("ix_message_chat_time", Messages.chat_id, Messages.created_at)
 

@@ -2,8 +2,7 @@ from fastapi import FastAPI, HTTPException, Depends, status
 from pydantic import BaseModel
 from typing import List, Annotated
 import models, auth
-from database import engine, SessionLocal, get_db
-from sqlalchemy import func
+from database import engine, get_db
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
@@ -48,6 +47,20 @@ class MessageOut(BaseModel):
     text: str
     created_at: str
     author_username: str
+
+class InviteBase(BaseModel):
+    receiver_id: int
+    chat_id: int
+    text: str
+
+class InviteOut(BaseModel):
+    id: int
+    sender_id: int
+    receiver_id: int
+    chat_id: int
+    text: str
+    status: str
+    created_at: str
 
 member = []
 
@@ -140,31 +153,31 @@ async def send_message(db: db_dependency, chat_id: int, message: MessageBase, cu
     if not member:
         raise HTTPException(status_code=403, detail="Not a member of this chat.")
     
-    m = models.Messages(
+    inv = models.Messages(
         account_id = current_user.id,
         chat_id = chat_id,
         text = message.text,
         author_username = current_user.username
     )
 
-    db.add(m)
+    db.add(inv)
     try:
         db.commit()
-        db.refresh(m)
+        db.refresh(inv)
     except:
         db.rollback()
         raise HTTPException(status_code=500, detail="Unexpected server error.")
     
     return {
-        "id" : m.id,
-        "account_id" : m.account_id,
-        "chat_id" : m.chat_id,
-        "text" : m.text,
-        "created_at" : m.created_at.isoformat(),
-        "author_username" : m.author_username
+        "id" : inv.id,
+        "account_id" : inv.account_id,
+        "chat_id" : inv.chat_id,
+        "text" : inv.text,
+        "created_at" : inv.created_at.isoformat(),
+        "author_username" : inv.author_username
     }
 
-@app.get("/gc/{chat_id}/messages", response_model=list[MessageOut])
+@app.get("/gc/{chat_id}/messages", response_model=List[MessageOut])
 async def get_message(db: db_dependency, chat_id: int, limit: int = 50, current_user: models.Accounts = Depends(get_current_active_user)):
     member = db.query(models.ChatMembers).filter_by(account_id=current_user.id, chat_id=chat_id).first()
     if not member:
@@ -176,17 +189,49 @@ async def get_message(db: db_dependency, chat_id: int, limit: int = 50, current_
 
     out = []
     
-    for m in rows:
+    for inv in rows:
         out.append({
-            "id" : m.id,
-            "account_id" : m.account_id if m.account_id is not None else 0,
-            "chat_id" : m.chat_id,
-            "text" : m.text,
-            "created_at" : m.created_at.isoformat(),
-            "author_username" : m.author_username
+            "id" : inv.id,
+            "account_id" : inv.account_id if inv.account_id is not None else 0,
+            "chat_id" : inv.chat_id,
+            "text" : inv.text,
+            "created_at" : inv.created_at.isoformat(),
+            "author_username" : inv.author_username
         })
 
     return list(reversed(out))
 
-
-
+@app.post("/gc/invites", response_model=InviteOut)
+async def create_invite(db: db_dependency, invite: InviteBase, current_user: models.Accounts = Depends(get_current_active_user)):
+    chat = db.query(models.Chats).filter(invite.chat_id == models.Chats.id).first()
+    if not chat:
+        raise HTTPException(status_code=404, detail="Chat not found.")
+    
+    receiver = db.query(models.Accounts).filter(invite.receiver_id == models.Accounts.id).first()
+    if not receiver:
+        raise HTTPException(status_code=404, detail="Account not found.")
+    
+    inv = models.Invites(
+        sender_id = current_user.id,
+        receiver_id = invite.receiver_id,
+        chat_id = invite.chat_id,
+        text = invite.text
+    )
+    
+    db.add(inv)
+    try:
+        db.commit()
+        db.refresh(inv)
+    except:
+        db.rollback()
+        raise HTTPException(status_code=500, detail="Unexpected server error.")
+    
+    return {
+        "id" : inv.id,
+        "sender_id" : inv.sender_id,
+        "receiver_id" : inv.receiver_id,
+        "chat_id" : inv.chat_id,
+        "text" : inv.text,
+        "status" : inv.status,
+        "created_at" : inv.created_at.isoformat()
+    }
