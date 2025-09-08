@@ -24,3 +24,45 @@ export async function login(username, password) {
 
     return res.json();
 }   
+
+export async function me(token) {
+  const res = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/users/me/`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!res.ok) throw new Error("Failed to load current user");
+  return res.json();
+}
+
+export async function listChats(token) {
+    const res = await fetch(`${API}/gc`, {
+        headers: { ...authHeaders(token) },
+    });
+
+    if (!res.ok) throw new Error("Failed to load chats");
+
+    return res.json();
+}
+
+export async function listMessages(token, chatId, limit = 50) {
+    const res = await fetch(`${API}/gc/${chatId}/messages?limit=${limit}`, {
+        headers: { ...authHeaders(token) },
+    });
+    if (!res.ok) throw new Error("Failed to load messages");
+    return res.json();
+}
+
+export async function sendMessage(token, chatId, text) {
+    const res = await fetch(`${API}/gc/${chatId}/messages`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(token),
+        },
+        body: JSON.stringify({ text }),
+    });
+    if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(`Send failed: ${res.status} ${msg}`);
+    }
+    return res.json();
+}
