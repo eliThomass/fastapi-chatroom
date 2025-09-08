@@ -109,7 +109,7 @@ async def get_account(account_id: int, db: db_dependency):
 async def login_for_access_token(db: db_dependency, form_data: OAuth2PasswordRequestForm = Depends()):
     user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password", headers={"WWW-Authenciate" : "Bearer"})
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Incorrect username or password", headers={"WWW-Authenticate" : "Bearer"})
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     token = create_access_token(data={"sub" : str(user.id)}, expires_delta=access_token_expires)
     return {"access_token" : token, "token_type" : "bearer"}
@@ -203,13 +203,31 @@ async def get_message(db: db_dependency, chat_id: int, limit: int = 50, current_
 
 @app.post("/gc/invites", response_model=InviteOut)
 async def create_invite(db: db_dependency, invite: InviteBase, current_user: models.Accounts = Depends(get_current_active_user)):
+    if invite.receiver_id == current_user.id:
+        raise HTTPException(status_code=400,detail="Cannot invite yourself.")
+    
     chat = db.query(models.Chats).filter(invite.chat_id == models.Chats.id).first()
     if not chat:
         raise HTTPException(status_code=404, detail="Chat not found.")
     
+    inviter_member = (db.query(models.ChatMembers).filter_by(account_id=current_user.id, chat_id=invite.chat_id).first())
+    if not inviter_member:
+        raise HTTPException(status_code=403, detail="You are not a member of this chat.")
+    
     receiver = db.query(models.Accounts).filter(invite.receiver_id == models.Accounts.id).first()
     if not receiver:
         raise HTTPException(status_code=404, detail="Account not found.")
+    
+    already_member = (db.query(models.ChatMembers).filter_by(account_id=invite.receiver_id, chat_id=invite.chat_id).first())
+    if already_member:
+        raise HTTPException(status_code=409, detail="User is already a member of this chat.")
+    
+    pending = (db.query(models.Invites).filter(
+                                                models.Invites.receiver_id == invite.receiver_id,
+                                                models.Invites.chat_id == invite.chat_id,
+                                                models.Invites.status == "pending",).first())
+    if pending:
+        raise HTTPException(status_code=409, detail="An invite is already pending for this user.")
     
     m = models.Invites(
         sender_id = current_user.id,
@@ -238,7 +256,7 @@ async def create_invite(db: db_dependency, invite: InviteBase, current_user: mod
 
 @app.get("/invites", response_model=List[InviteOut])
 async def get_invites(db: db_dependency, limit: int = 50, current_user: models.Accounts = Depends(get_current_active_user)):  
-    invites = db.query(models.Invites).filter(models.Invites.receiver_id == current_user.id)
+    invites = db.query(models.Invites).filter(models.Invites.receiver_id == current_user.id, models.Invites.status == "pending")
     rows = invites.order_by(models.Invites.created_at.desc()).limit(min(max(limit, 1), 200)).all()
 
     out = []
@@ -255,3 +273,54 @@ async def get_invites(db: db_dependency, limit: int = 50, current_user: models.A
         })
 
     return list(reversed(out))
+
+@app.post("/invites/{invite_id}/accept", response_model=InviteOut)
+async def accept_invite(db: db_dependency, invite_id: int, current_user: models.Accounts = Depends(get_current_active_user)):
+    invite = db.query(models.Invites).filter(models.Invites.id == invite_id, models.Invites.receiver_id == current_user.id).first()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found.")
+    elif invite.status != "pending":
+        raise HTTPException(status_code=409, detail="Invite already resolved.")
+    
+    exists = db.query(models.ChatMembers).filter_by(account_id=current_user.id, chat_id=invite.chat_id).first()
+    
+    if not exists:
+        db.add(models.ChatMembers(account_id=current_user.id, chat_id=invite.chat_id))
+
+    invite.status="accepted"
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+
+
+    return {"id" : invite.id,
+            "sender_id" : invite.sender_id,
+            "receiver_id" : invite.receiver_id,
+            "chat_id" : invite.chat_id,
+            "text" : invite.text,
+            "status" : invite.status,
+            "created_at" : invite.created_at.isoformat()
+            }
+
+@app.post("/invites/{invite_id}/decline", response_model=InviteOut)
+async def decline_invite(db: db_dependency, invite_id: int, current_user: models.Accounts = Depends(get_current_active_user)):
+    invite = db.query(models.Invites).filter(models.Invites.id == invite_id, models.Invites.receiver_id == current_user.id).first()
+    
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found.")
+    elif invite.status != "pending":
+        raise HTTPException(status_code=409, detail="Invite already resolved.")
+    
+    invite.status="declined"
+    db.add(invite)
+    db.commit()
+    db.refresh(invite)
+
+    return {"id" : invite.id,
+            "sender_id" : invite.sender_id,
+            "receiver_id" : invite.receiver_id,
+            "chat_id" : invite.chat_id,
+            "text" : invite.text,
+            "status" : invite.status,
+            "created_at" : invite.created_at.isoformat()
+            }
