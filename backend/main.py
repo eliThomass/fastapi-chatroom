@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Annotated
@@ -16,6 +17,18 @@ from datetime import timedelta
 
 app = FastAPI()
 models.Base.metadata.create_all(bind=engine)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],)
 
 db_dependency = Annotated[Session, Depends(get_db)]
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

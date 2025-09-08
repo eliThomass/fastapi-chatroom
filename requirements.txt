@@ -16,3 +16,6 @@ python-jose
 # Data validation
 pydantic==2.8.2
 
+# npm
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+
