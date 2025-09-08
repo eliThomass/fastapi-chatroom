@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Annotated
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 import models, auth
 from database import engine, get_db
 from sqlalchemy.orm import Session
@@ -376,3 +378,7 @@ async def decline_invite(db: db_dependency, invite_id: int, current_user: models
             "status" : invite.status,
             "created_at" : invite.created_at.isoformat()
             }
+
+
+FRONTEND_DIR = Path(__file__).resolve().parent / ".." / "frontend" / "dist"
+app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="static")

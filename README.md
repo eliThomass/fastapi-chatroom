@@ -10,3 +10,9 @@ A project by Eli Thomas.
 * JWT for authentication with tokens
 
 ## How to Install
+
+Run pip install -r requirements.txt to download all required python libraries.
+
+Have the latest version of Python on your machine.
+
+Install Node on your machine, then install Vite.
