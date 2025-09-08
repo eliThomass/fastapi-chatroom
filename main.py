@@ -142,6 +142,44 @@ async def create_group_chat(db:db_dependency, group_chat: GroupChatBase, current
         "created_at": new_chat.created_at.isoformat(),
     }
 
+@app.get("/gc", response_model=List[GroupChatOut])
+async def get_all_chats(db: db_dependency, limit: int = 50, current_user: models.Accounts = Depends(get_current_active_user)):
+    rows = (db.query(models.Chats)
+            .join(models.ChatMembers, models.ChatMembers.chat_id == models.Chats.id)
+            .filter(models.ChatMembers.account_id == current_user.id)
+            .order_by(models.Chats.created_at.desc())
+            .limit(min(max(limit, 1), 200))
+            .all())
+
+    out = []
+
+    for c in rows:
+        out.append({
+            "id": c.id,
+            "name": c.name,
+            "created_by" : c.created_by,
+            "created_at": c.created_at.isoformat()
+        })
+
+    return list(reversed(out))
+
+@app.get("/gc/created", response_model=List[GroupChatOut])
+async def get_created_chats(db: db_dependency, limit: int = 50, current_user: models.Accounts = Depends(get_current_active_user)):
+    chats = (db.query(models.Chats).filter(models.Chats.created_by == current_user.id))
+    rows = chats.order_by(models.Chats.created_at.desc()).limit(min(max(limit, 1), 200)).all()
+
+    out = []
+
+    for c in rows:
+        out.append({
+            "id": c.id,
+            "name": c.name,
+            "created_by" : c.created_by,
+            "created_at": c.created_at.isoformat()
+        })
+
+    return list(reversed(out))
+
 @app.post("/gc/{chat_id}/messages", response_model=MessageOut)
 async def send_message(db: db_dependency, chat_id: int, message: MessageBase, current_user: models.Accounts = Depends(get_current_active_user)):
     chat = db.query(models.Chats).filter(chat_id == models.Chats.id).first()
