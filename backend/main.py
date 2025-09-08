@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Annotated
 import models, auth
