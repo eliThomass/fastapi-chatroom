@@ -104,6 +104,27 @@ useEffect(() => {
     return () => { cancelled = true; clearInterval(t); };
   }, [token, activeChatId]);
 
+  useEffect(() => {
+    if (!token || !activeChatId) return;
+
+    const WS_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8000")
+      .replace(/^http/, "ws"); // http->ws, https->wss
+
+    const ws = new WebSocket(
+     `${WS_BASE}/gc/${activeChatId}/ws?token=${encodeURIComponent(token)}`
+    );
+
+    ws.onmessage = (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        if (msg?.type === "message" && msg.payload) {
+          setMessages(prev => [...prev, msg.payload]);
+        }
+      } catch {}
+    };
+    return () => ws.close();
+  }, [token, activeChatId]);
+
   async function onSend(e) {
     e.preventDefault();
     if (!draft.trim() || !activeChatId) return;
@@ -188,9 +209,11 @@ useEffect(() => {
   return (
     <>
       <h1>Homepage</h1>
-      <hr></hr>
+
       {error && <div style={{color: "crimson"}}>{error}</div>}
       {success && <div style={{ color: "green" }}>{success}</div>}
+
+      <hr></hr>
 
         <button onClick={async () => {
           try {
