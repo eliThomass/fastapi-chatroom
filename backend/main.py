@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Depends, status
+from fastapi import FastAPI, HTTPException, Depends, status, WebSocketDisconnect, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -11,23 +11,22 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 from passlib.context import CryptContext
 from auth import (create_access_token, authenticate_user, ACCESS_TOKEN_EXPIRE_MINUTES, Token,
-                  get_current_active_user
+                  get_current_active_user, get_user_from_token
 )
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import timedelta
+import asyncio
 
 
+
+
+manager = models.ConnectionManager()
 app = FastAPI()
 models.Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-    ],
+    allow_origins=["*"], # ONLY * WHEN IN DEV
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],)
@@ -78,7 +77,41 @@ class InviteOut(BaseModel):
     status: str
     created_at: str
 
+class UserOutWithID(BaseModel):
+    user_id: int
+    username: str
+    email: str | None = None
+
 member = []
+
+@app.websocket("/gc/{chat_id}/ws")
+async def chat_ws(websocket: WebSocket, chat_id: int, db: Session = Depends(get_db)):
+    token = websocket.query_params.get("token")
+    if not token:
+        await websocket.close(code=4401)
+        return
+
+    try:
+        current_user = auth.get_user_from_token(token, db)
+    except HTTPException:
+        await websocket.close(code=4401)
+        return
+
+    is_member = db.query(models.ChatMembers).filter_by(
+        account_id=current_user.id, chat_id=chat_id
+    ).first()
+    if not is_member:
+        await websocket.close(code=4403)
+        return
+
+    await manager.connect(chat_id, websocket)
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(chat_id, websocket)
+
 
 @app.post("/sign_up")
 async def add_account(account: SignUpBase, db: db_dependency):
@@ -130,9 +163,9 @@ async def login_for_access_token(db: db_dependency, form_data: OAuth2PasswordReq
     token = create_access_token(data={"sub" : str(user.id)}, expires_delta=access_token_expires)
     return {"access_token" : token, "token_type" : "bearer"}
 
-@app.get("/users/me/", response_model=UserOut)
+@app.get("/users/me/", response_model=UserOutWithID)
 async def read_users_me(current_user: models.Accounts = Depends(get_current_active_user)):
-    return UserOut(username=current_user.username, email=current_user.email)
+    return UserOutWithID(user_id=current_user.id, username=current_user.username, email=current_user.email)
 
 @app.post("/gc", response_model=GroupChatOut)
 async def create_group_chat(db:db_dependency, group_chat: GroupChatBase, current_user: models.Accounts = Depends(get_current_active_user)):
@@ -222,7 +255,7 @@ async def send_message(db: db_dependency, chat_id: int, message: MessageBase, cu
         db.rollback()
         raise HTTPException(status_code=500, detail="Unexpected server error.")
     
-    return {
+    msg_out = {
         "id" : m.id,
         "account_id" : m.account_id,
         "chat_id" : m.chat_id,
@@ -230,6 +263,9 @@ async def send_message(db: db_dependency, chat_id: int, message: MessageBase, cu
         "created_at" : m.created_at.isoformat(),
         "author_username" : m.author_username
     }
+
+    asyncio.create_task(manager.broadcast(chat_id, {"type": "message", "payload": msg_out}))
+    return msg_out
 
 @app.get("/gc/{chat_id}/messages", response_model=List[MessageOut])
 async def get_message(db: db_dependency, chat_id: int, limit: int = 50, current_user: models.Accounts = Depends(get_current_active_user)):

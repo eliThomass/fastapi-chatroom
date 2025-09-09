@@ -39,6 +39,26 @@ def get_password_hash(password):
 def verify_password(plain_password, hashed_password):
     return pwd_context.verify(plain_password, hashed_password)
 
+def get_user_from_token(token: str, db: Session):
+    credential_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[ALGORITHM])
+        sub = payload.get("sub")
+        if sub is None:
+            raise credential_exception
+        user_id = int(sub)
+    except (JWTError, ValueError):
+        raise credential_exception
+
+    user = get_user_by_id(db=db, user_id=user_id)
+    if user is None:
+        raise credential_exception
+    return user
+
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credential_exception = HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, 
                             detail="Could not validate credentials", 
@@ -59,6 +79,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         raise credential_exception
     
     return user
+
 
 
 async def get_current_active_user(current_user: models.Accounts = Depends(get_current_user)):

@@ -3,6 +3,26 @@ from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from database import Base
 from sqlalchemy import Index
+from fastapi import WebSocket
+from collections import defaultdict
+
+class ConnectionManager:
+    def __init__(self):
+        self.rooms = defaultdict(set)
+    async def connect(self, chat_id: int, ws: WebSocket):
+        await ws.accept()
+        self.rooms[chat_id].add(ws)
+    def disconnect(self, chat_id: int, ws: WebSocket):
+        self.rooms[chat_id].discard(ws)
+    async def broadcast(self, chat_id: int, data: dict):
+        dead = []
+        for ws in list(self.rooms[chat_id]):
+            try:
+                await ws.send_json(data)
+            except Exception:
+                dead.append(ws)
+        for ws in dead:
+            self.disconnect(chat_id, ws)
 
 class Accounts(Base):
     __tablename__ = 'account'
