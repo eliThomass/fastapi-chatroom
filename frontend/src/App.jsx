@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { login, listChats, me, listMessages, sendMessage, listInvites, 
-        acceptInvite, declineInvite, sendInvite} from "./api";
+        acceptInvite, declineInvite, sendInvite, newAccount, createChat} from "./api";
 import "./App.css";
 
 export default function App() {
@@ -10,31 +10,64 @@ export default function App() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [password, setPassword] = useState("");
 
+  const [newUsername, setNewUsername] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [newEmail, setNewEmail] = useState("")
+
   const [receiverId, setReceiverId] = useState("");
   const [invites, setInvites] = useState([]);
 
+  const [newChatName, setChatName] = useState("");
   const [chats, setChats] = useState([]);
   const [activeChatId, setActiveChatId] = useState(null);
 
-  
+  const [success, setSuccess] = useState("");
   const [isSendingInvite, setIsSendingInvite] = useState(false);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
   const [notedraft, setnoteDraft] = useState("");
   const [error, setError] = useState("");
 
+  async function handleSignup(e) {
+    e.preventDefault();
+
+    if (!newUsername || !newEmail || !newPassword) {
+      setError("Please fill username, email, and password.");
+      return;
+    }
+    try {
+      const msg = await newAccount(newUsername, newEmail, newPassword);
+      setNewPassword("");
+      setSuccess("Account created!");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function onLogin(e) {
     e.preventDefault();
-    setError("");
     try {
       const { access_token } = await login(username, password);
       setToken(access_token);
       localStorage.setItem("token", access_token);
       setPassword("");
+      setSuccess("Login Successful!");
     } catch (e) {
       setError(e.message);
     }
   }
+
+  useEffect(() => {
+    if (!success) return;
+    const t = setTimeout(() => setSuccess(""), 4000);
+    return () => clearTimeout(t);
+  }, [success]);
+
+useEffect(() => {
+  if (!error) return;
+  const t = setTimeout(() => setError(""), 4000);
+  return () => clearTimeout(t);
+}, [error]);
 
   useEffect(() => {
     if (!token) return;
@@ -44,6 +77,8 @@ export default function App() {
         setCurrentUser(u.username);
         setCurrentUserId(u.user_id); 
         const cs = await listChats(token);
+        const invs = await listInvites(token);
+        setInvites(invs);
         setChats(cs);
         if (cs.length && !activeChatId) setActiveChatId(cs[0].id);
       } catch (e) {
@@ -74,7 +109,7 @@ export default function App() {
     if (!draft.trim() || !activeChatId) return;
     try {
       const m = await sendMessage(token, activeChatId, draft.trim());
-      setMessages((prev) => [...prev, m]);  // append
+      setMessages((prev) => [...prev, m]);
       setDraft("");
     } catch (e) {
       setError(e.message);
@@ -104,7 +139,8 @@ export default function App() {
     return (
       <div>
         <h2>Login</h2>
-        {error && <div>{error}</div>}
+        {error && <div style={{color: "crimson"}}>{error}</div>}
+        {success && <div style={{ color: "green" }}>{success}</div>}
         <form onSubmit={onLogin}>
           <input
             placeholder="username"
@@ -120,6 +156,31 @@ export default function App() {
           <button type="submit">Sign in</button>
         </form>
         <p>Uses <code>POST /token</code> (form-encoded)</p>
+
+        <p>OR... create a <b>new account</b></p>
+
+        <form onSubmit={handleSignup}>
+          <input
+            placeholder="username"
+            type="username"
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+          />
+          <input
+            placeholder="email"
+            type="email"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+          />
+          <input
+            placeholder="password"
+            type="password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+          />
+          <button type="submit" disabled={!newUsername || !newEmail || !newPassword}>Create Account</button>
+        </form>
+
       </div>
     )
   }
@@ -127,7 +188,9 @@ export default function App() {
   return (
     <>
       <h1>Homepage</h1>
+      <hr></hr>
       {error && <div style={{color: "crimson"}}>{error}</div>}
+      {success && <div style={{ color: "green" }}>{success}</div>}
 
         <button onClick={async () => {
           try {
@@ -153,9 +216,13 @@ export default function App() {
         {!chats.length && <li>No chats yet</li>}
       </ul>
 
+      <hr></hr>
+
+
       <div>
         <strong>{activeChat?.name || "Select a chat"}</strong>
       </div>
+
 
       <div>
         {messages.map((m) => (
@@ -200,10 +267,8 @@ export default function App() {
         </form>
         
       </div>
-  
-      <p>You are logged in as: <b>{currentUser}  </b>
-        <button onClick={logout}>Logout</button>
-      </p>
+
+      <hr></hr>
 
       <button onClick={async () => {
           try {
@@ -277,13 +342,14 @@ export default function App() {
           try {
             const created = await sendInvite(
               token,
-              Number(receiverId),    // receiver_id
-              Number(activeChatId),  // chat_id
-              notedraft.trim()       // text
+              Number(receiverId),
+              Number(activeChatId),
+              notedraft.trim()
             );
             setInvites(prev => [created, ...prev]);
             setnoteDraft("");
             setReceiverId("");
+            setSuccess("Invite successfully sent!");
           } catch (err) {
             setError(err.message);
           } finally {
@@ -316,8 +382,45 @@ export default function App() {
           </div>
           <button type="submit">Send</button>
         </form>
-        
       </div>
+      <hr></hr>
+
+      <div>
+      <form onSubmit={async e => {
+          e.preventDefault();
+          if (!newChatName) {
+            setError("No chat name provided.");
+            return;
+          }
+
+          try {
+            const created = await createChat(token, newChatName);
+            setChats(prev => [created, ...prev]);
+            setActiveChatId(created.id);
+            setChatName("");
+          } catch(err) {
+            setError(err);
+          }
+          
+        }}>
+        <b>Create a new chat</b>
+        <div>
+            <label>
+              Chat Name:
+              <input
+                value={newChatName}
+                onChange={e => setChatName(e.target.value)}
+              />
+            </label>
+          </div>
+          <button type="submit" disabled={!newChatName}>Create</button>
+        </form>
+      </div>
+
+      
+      <p>You are logged in as: <b>{currentUser} ({currentUserId})  </b>
+        <button onClick={logout}>Logout</button>
+      </p>
 
     </>
   )

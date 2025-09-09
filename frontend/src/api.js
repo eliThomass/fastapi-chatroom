@@ -26,11 +26,27 @@ export async function login(username, password) {
 }   
 
 export async function me(token) {
-  const res = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/users/me/`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!res.ok) throw new Error("Failed to load current user");
-  return res.json();
+    const res = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/users/me/`, {
+        headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Failed to load current user");
+    return res.json();
+}
+
+export async function newAccount(username, email, password) {
+    const res = await fetch(`${API}/sign_up`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ username, email, password }),
+    });
+
+    if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(`Send failed: ${res.status} ${msg}`);
+    }
+
 }
 
 export async function listChats(token) {
@@ -40,6 +56,22 @@ export async function listChats(token) {
 
     if (!res.ok) throw new Error("Failed to load chats");
 
+    return res.json();
+}
+
+export async function createChat(token, name) {
+    const res = await fetch(`${API}/gc`, {
+        method: "POST",
+        headers: { 
+            ...authHeaders(token), 
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ name }),
+    });
+    if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(`Send failed: ${res.status} ${msg}`);
+    }
     return res.json();
 }
 
