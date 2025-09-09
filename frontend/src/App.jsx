@@ -107,11 +107,11 @@ useEffect(() => {
   useEffect(() => {
     if (!token || !activeChatId) return;
 
-    const WS_BASE = (import.meta.env.VITE_API_BASE || "http://localhost:8000")
-      .replace(/^http/, "ws"); // http->ws, https->wss
+    
+    const WS_BASE = (import.meta.env.VITE_API_BASE || window.location.origin).replace(/^http/, "ws");
 
     const ws = new WebSocket(
-     `${WS_BASE}/gc/${activeChatId}/ws?token=${encodeURIComponent(token)}`
+      `${WS_BASE}/gc/${activeChatId}/ws?token=${encodeURIComponent(token)}`
     );
 
     ws.onmessage = (evt) => {
@@ -201,6 +201,7 @@ useEffect(() => {
           />
           <button type="submit" disabled={!newUsername || !newEmail || !newPassword}>Create Account</button>
         </form>
+
 
       </div>
     )

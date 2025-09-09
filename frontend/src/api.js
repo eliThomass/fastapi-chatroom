@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_BASE;
+export const API = import.meta.env.VITE_API_BASE || window.location.origin;
 
 function authHeaders(token) {
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -26,7 +26,7 @@ export async function login(username, password) {
 }   
 
 export async function me(token) {
-    const res = await fetch(`${import.meta.env.VITE_API_BASE || "http://localhost:8000"}/users/me/`, {
+    const res = await fetch(`${API}/users/me/`, {
         headers: { Authorization: `Bearer ${token}` },
     });
     if (!res.ok) throw new Error("Failed to load current user");
