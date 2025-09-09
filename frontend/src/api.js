@@ -66,3 +66,45 @@ export async function sendMessage(token, chatId, text) {
     }
     return res.json();
 }
+
+export async function sendInvite(token, receiver_id, chat_id, text) {
+    const res = await fetch(`${API}/gc/invites`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            ...authHeaders(token),
+        },
+        body: JSON.stringify({ receiver_id, chat_id, text }),
+    });
+    if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(`Send failed: ${res.status} ${msg}`);
+    }
+    return res.json();
+}
+
+export async function listInvites(token, limit = 50) {
+    const res = await fetch(`${API}/invites?limit=${limit}`, {
+        headers: { ...authHeaders(token) },
+    });
+    if (!res.ok) throw new Error("Failed to load invites");
+    return res.json();
+}
+
+export async function acceptInvite(token, inviteId) {
+    const res = await fetch(`${API}/invites/${inviteId}/accept`, {
+        method: "POST",
+        headers: authHeaders(token),
+    });
+    if (!res.ok) throw new Error("Failed to accept invite");
+    return res.json();
+}
+
+export async function declineInvite(token, inviteId) {
+    const res = await fetch(`${API}/invites/${inviteId}/decline`, {
+        method: "POST",
+        headers: authHeaders(token),
+    });
+    if (!res.ok) throw new Error("Failed to decline invite");
+    return res.json();
+}
