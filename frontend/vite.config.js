@@ -19,6 +19,7 @@ export default defineConfig({
       "/users":   { target: "http://127.0.0.1:8000", changeOrigin: true, ws: true },
       "/gc":      { target: "http://127.0.0.1:8000", changeOrigin: true, ws: true },
       "/invites": { target: "http://127.0.0.1:8000", changeOrigin: true, ws: true },
+      "/sign_up": { target: "http://127.0.0.1:8000", changeOrigin: true },
     },
 
     // HMR over Cloudflare HTTPS
