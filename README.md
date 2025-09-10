@@ -115,5 +115,3 @@ cloudflared tunnel --url http://localhost:5173
 ```
 
 Cloudflare will output the random domain name in the terminal. You can then use the application through that domain.
-
-```
