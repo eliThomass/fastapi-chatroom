@@ -159,28 +159,29 @@ useEffect(() => {
   if (!token) {
     return (
       <div>
-        <h2>Login</h2>
+        <h2 class="login">Login</h2>
         {error && <div style={{color: "crimson"}}>{error}</div>}
         {success && <div style={{ color: "green" }}>{success}</div>}
-        <form onSubmit={onLogin}>
-          <input
-            placeholder="username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-          />
-          <input
-            placeholder="password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button type="submit">Sign in</button>
-        </form>
-        <p>Uses <code>POST /token</code> (form-encoded)</p>
+          <div class="loginform">
+            <form onSubmit={onLogin}>
+            <input
+              placeholder="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+            <input
+              placeholder="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+            <button type="submit">Sign in</button>
+          </form>
+        </div>
 
-        <p>OR... create a <b>new account</b></p>
+        <div style={{textAlign: "center", color: "darkcyan"}}>OR... create a <b> new account</b></div>
 
-        <form onSubmit={handleSignup}>
+        <form class="signupform" onSubmit={handleSignup}>
           <input
             placeholder="username"
             type="username"
@@ -209,7 +210,7 @@ useEffect(() => {
 
   return (
     <>
-      <h1>Homepage</h1>
+      <h1 class="login" style={{marginTop: "50px"}}>Homepage</h1>
 
       {error && <div style={{color: "crimson"}}>{error}</div>}
       {success && <div style={{ color: "green" }}>{success}</div>}
@@ -243,12 +244,13 @@ useEffect(() => {
       <hr></hr>
 
 
-      <div>
-        <strong>{activeChat?.name || "Select a chat"}</strong>
+      <div style={{textAlign: "center"}}>
+        <strong>{activeChat?.name || "Select a chat"} (Current Chat)</strong>
       </div>
 
+      
 
-      <div>
+      <div class="chatroom">
         {messages.map((m) => (
           <div key={m.id}>
             <div>

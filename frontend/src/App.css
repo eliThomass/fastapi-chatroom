@@ -1,4 +1,42 @@
-h2 {
-    color:blue
+.login {
+    margin-top: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif;
+    font-size: 40px;
+    color:darkcyan;
 }
 
+.loginform {
+    margin: 10px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color:rgb(135, 73, 118);
+    border-radius: 10px;
+    max-width: 400px;
+    height: 70px;
+    mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+}
+
+.signupform {
+    margin: 10px auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color:rgb(146, 176, 218);
+    border-radius: 10px;
+    width: 600px;
+    height: 70px;
+    mask-image: linear-gradient(to bottom, transparent, black 10%, black 90%, transparent);
+}
+
+.chatroom {
+    margin: 10px auto;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    background-color:rgb(0, 0, 0);
+    color: rgb(252, 252, 252);
+}
