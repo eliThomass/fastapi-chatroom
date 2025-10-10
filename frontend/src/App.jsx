@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { login, listChats, me, listMessages, sendMessage, listInvites, 
         acceptInvite, declineInvite, sendInvite, newAccount, createChat} from "./api";
 import "./App.css";
@@ -9,6 +9,8 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState("");
   const [currentUserId, setCurrentUserId] = useState(null);
   const [password, setPassword] = useState("");
+
+  const messagesListRef = useRef(null);
 
   const [newUsername, setNewUsername] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -113,6 +115,14 @@ export default function App() {
     return () => { cancelled = true; clearInterval(t); };
   }, [token, activeChatId]);
 
+  // Automatically scroll to bottom of chat (newest messages)
+  useEffect(() => {
+    if (messagesListRef.current) {
+      const messagesContainer = messagesListRef.current;
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  }, [messages]);
+
   // Websocket stuff for grabbing new messages
   useEffect(() => {
     if (!token || !activeChatId) return;
@@ -209,244 +219,248 @@ export default function App() {
   // Otherwise, if we are logged in, display the homepage.
   return (
     <>
-      <h1 class="login" style={{marginTop: "50px"}}>Homepage</h1>
+      <div class="header">
+        <h1>👋 Welcome, {currentUser}!</h1>
+        <div id="error">
+          &nbsp;
+          {error}
+        </div>
+        <div id="success">
+          &nbsp;
+          {success}
+        </div>
+        <div class="header-left">
+          Logged in as: &nbsp; <b>{currentUser}</b>
+          <button id="logout" onClick={logout}>Logout</button>
+        </div>
+      </div>
 
-      {error && <div style={{color: "crimson"}}>{error}</div>}
-      {success && <div style={{ color: "green" }}>{success}</div>}
-
-      <hr></hr>
-
-        <button onClick={async () => {
-          try {
-            const cs = await listChats(token);
-            setChats(cs);
-          } catch (e) {
-            setError(e.message);
-          }
+      <div class="body">
+        <div class="load-chats">
+          <button id="load-chat" onClick={async () => {
+            try {
+              const cs = await listChats(token);
+              setChats(cs);
+            } catch (e) {
+              setError(e.message);
+            }
           }}>
-          Your Chats
-        </button>
+            Your Chats
+          </button>
 
-      <ul>
-        {chats.map(c => (
-          <li key={c.id}>
-            <div>{c.name}</div>
-            <div>id: {c.id}</div>
-            <button onClick={() => setActiveChatId(c.id)}>
-                Load Chat
-            </button>
-          </li>
-        ))}
-        {!chats.length && <li>No chats yet</li>}
-      </ul>
+          <ul>
+            {chats.map(c => (
+              <li key={c.id}>
+                <div>{c.name}</div>
+                <div>id: {c.id}</div>
+                <button onClick={() => setActiveChatId(c.id)}>
+                  Load Chat
+                </button>
+              </li>
+            ))}
+            {!chats.length && <li>No chats yet</li>}
+          </ul>
 
-      <hr></hr>
+        </div>
 
+        <div class="current-chat-name">
+            <strong>{activeChat?.name || "Select a chat"}</strong>
+        </div>
 
-      <div style={{textAlign: "center"}}>
-        <strong>{activeChat?.name || "Select a chat"} (Current Chat)</strong>
-      </div>
-
-      
-
-      <div class="chatroom">
-        {messages.map((m) => (
-          <div key={m.id}>
-            <div>
-              <b>{m.author_username ?? m.account_id}</b>{" "}
-              <span>
-                {new Date(m.created_at).toLocaleString()}
-              </span>
-            </div>
-            <div>{m.text}</div>
+        <div class="current-chat">
+          <div class="messages-list" ref={messagesListRef}>
+            {messages.map((m) => (
+              <div class="message" key={m.id}>
+                <div>
+                  <b>{m.author_username ?? m.account_id}</b>{" "}
+                  <span>
+                    {new Date(m.created_at).toLocaleString()}
+                  </span>
+                </div>
+                <div>{m.text}</div>
+              </div>
+            ))}
           </div>
-        ))}
+          <form onSubmit={async e => {
+            e.preventDefault();
+            if (!draft.trim()) return;
+
+            const now = new Date().toISOString();
+
+            const newMsg = {
+              id: Math.random().toString(36).slice(2),
+              user: currentUser,
+              text: draft,
+              created_at: now,
+            };
+            setMessages(prev => [...prev, newMsg]);
+
+            try {
+              await sendMessage(token, activeChatId, draft);
+            } catch (err) {
+              console.error(err);
+            }
+
+            setDraft("");
+          }}>
+            Send message
+            <input value={draft} onChange={e => setDraft(e.target.value)} />
+            <button type="submit">Send</button>
+          </form>
+        </div>
       </div>
 
-      <div>
-        <form onSubmit={async e => {
-          e.preventDefault();
-          if (!draft.trim()) return;
+      <div class="send-body">
+        <div class="received-invites">
+          <button onClick={async () => {
+            try {
+              const invs = await listInvites(token);
+              setInvites(invs);
+            } catch (e) {
+              setError(e.message);
+            }
+          }}>
+            Your Invites
+          </button>
 
-          const now = new Date().toISOString();
+          <ul>
+            {visibleInvites.map(inv => (
+              <li key={inv.id}>
+                <div><b>From:</b> {inv.sender_id} → <b>To:</b> {inv.receiver_id}</div>
+                <div><b>Chat:</b> {inv.chat_id}</div>
+                <div><b>Message:</b> {inv.text}</div>
+                <div title={new Date(inv.created_at).toLocaleString()}>
+                  <b>Status:</b> {inv.status} • {new Date(inv.created_at).toLocaleString()}
+                </div>
 
-          const newMsg = {
-            id: Math.random().toString(36).slice(2),
-            user: currentUser, 
-            text: draft,
-            created_at: now,
-          };
-          setMessages(prev => [...prev, newMsg]);
+                {inv.status === "pending" ? (
+                  <div style={{ marginTop: 6 }}>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await acceptInvite(token, inv.id);
+                          setInvites(prev => prev.map(i => i.id === inv.id ? { ...i, status: "accepted" } : i));
+                          setActiveChatId(inv.chat_id);
+                          const cs = await listChats(token);
+                          setChats(cs);
+                        } catch (e) { setError(e.message); }
+                      }}
+                    >
+                      Accept
+                    </button>
+                    <button
+                      onClick={async () => {
+                        try {
+                          await declineInvite(token, inv.id);
+                          setInvites(prev => prev.map(i => i.id === inv.id ? { ...i, status: "declined" } : i));
+                        } catch (e) { setError(e.message); }
+                      }}
+                      style={{ marginLeft: 8 }}
+                    >
+                      Decline
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ marginTop: 6 }}>
+                    <button onClick={() => setActiveChatId(inv.chat_id)}>Go to chat</button>
+                  </div>
+                )}
+              </li>
+            ))}
+            {!visibleInvites.length && <li>No invites</li>}
+          </ul>
+        </div>
 
-          try {
-            await sendMessage(token, activeChatId, draft);
-          } catch (err) {
-            console.error(err);
-          }
 
-          setDraft("");
-        }}>
-          Send message
-          <input value={draft} onChange={e => setDraft(e.target.value)} />
-          <button type="submit">Send</button>
-        </form>
         
-      </div>
+        <div class="send-invite">
+          <form onSubmit={async e => {
+            e.preventDefault();
+            if (!notedraft.trim() || !receiverId || !activeChatId) {
+              setError("Pick a chat and fill Receiver ID + Message.");
+              return;
+            }
 
-      <hr></hr>
-
-      <button onClick={async () => {
-          try {
-            const invs = await listInvites(token);
-            setInvites(invs);
-          } catch (e) {
-            setError(e.message);
-          }
+            setIsSendingInvite(true);
+            try {
+              const created = await sendInvite(
+                token,
+                Number(receiverId),
+                Number(activeChatId),
+                notedraft.trim()
+              );
+              setInvites(prev => [created, ...prev]);
+              setnoteDraft("");
+              setReceiverId("");
+              setSuccess("Invite successfully sent!");
+            } catch (err) {
+              setError(err.message);
+            } finally {
+              setIsSendingInvite(false);
+            }
           }}>
-          Your Invites
-        </button>
 
-        <ul>
-        {visibleInvites.map(inv => (
-          <li key={inv.id}>
-            <div><b>From:</b> {inv.sender_id} → <b>To:</b> {inv.receiver_id}</div>
-            <div><b>Chat:</b> {inv.chat_id}</div>
-            <div><b>Message:</b> {inv.text}</div>
-            <div title={new Date(inv.created_at).toLocaleString()}>
-              <b>Status:</b> {inv.status} • {new Date(inv.created_at).toLocaleString()}
+            <p>Send an invite!</p>
+
+            <div style={{ marginBottom: 8 }}>
+              <label>
+                Receiver ID: &nbsp;
+                <input
+                  value={receiverId}
+                  onChange={e => setReceiverId(e.target.value)}
+                  placeholder="e.g. 42"
+                />
+              </label>
             </div>
 
-            {inv.status === "pending" ? (
-              <div style={{ marginTop: 6 }}>
-                <button
-                  onClick={async () => {
-                    try {
-                      await acceptInvite(token, inv.id);
-                      setInvites(prev => prev.map(i => i.id === inv.id ? { ...i, status: "accepted" } : i));
-                      setActiveChatId(inv.chat_id);
-                      const cs = await listChats(token);
-                      setChats(cs);
-                    } catch (e) { setError(e.message); }
-                  }}
-                >
-                  Accept
-                </button>
-                <button
-                  onClick={async () => {
-                    try {
-                      await declineInvite(token, inv.id);
-                      setInvites(prev => prev.map(i => i.id === inv.id ? { ...i, status: "declined" } : i));
-                    } catch (e) { setError(e.message); }
-                  }}
-                  style={{ marginLeft: 8 }}
-                >
-                  Decline
-                </button>
-              </div>
-            ) : (
-              <div style={{ marginTop: 6 }}>
-                <button onClick={() => setActiveChatId(inv.chat_id)}>Go to chat</button>
-              </div>
-            )}
-          </li>
-        ))}
-        {!visibleInvites.length && <li>No invites</li>}
-      </ul>
+            <div style={{ marginBottom: 8 }}>
+              <label>
+                Message: &nbsp;
+                <input
+                  value={notedraft}
+                  onChange={e => setnoteDraft(e.target.value)}
+                  placeholder="Invite note"
+                />
+              </label>
+            </div>
+            <button type="submit">Send</button>
+          </form>
+        </div>
 
-
-
-      <div>
-        <form onSubmit={async e => {
-          e.preventDefault();
-          if (!notedraft.trim() || !receiverId || !activeChatId) {
-            setError("Pick a chat and fill Receiver ID + Message.");
-            return;
-          }
-
-          setIsSendingInvite(true);
-          try {
-            const created = await sendInvite(
-              token,
-              Number(receiverId),
-              Number(activeChatId),
-              notedraft.trim()
-            );
-            setInvites(prev => [created, ...prev]);
-            setnoteDraft("");
-            setReceiverId("");
-            setSuccess("Invite successfully sent!");
-          } catch (err) {
-            setError(err.message);
-          } finally {
-            setIsSendingInvite(false);
-          }
-        }}>
-
-          Send an invite
-
-          <div style={{ marginBottom: 8 }}>
-            <label>
-              Receiver ID:
-              <input
-                value={receiverId}
-                onChange={e => setReceiverId(e.target.value)}
-                placeholder="e.g. 42"
-              />
-            </label>
-          </div>
-
-          <div style={{ marginBottom: 8 }}>
-            <label>
-              Message:
-              <input
-                value={notedraft}
-                onChange={e => setnoteDraft(e.target.value)}
-                placeholder="Invite note"
-              />
-            </label>
-          </div>
-          <button type="submit">Send</button>
-        </form>
-      </div>
-      <hr></hr>
-
-      <div>
-      <form onSubmit={async e => {
-          e.preventDefault();
-          if (!newChatName) {
-            setError("No chat name provided.");
-            return;
-          }
-
-          try {
-            const created = await createChat(token, newChatName);
-            setChats(prev => [created, ...prev]);
-            setActiveChatId(created.id);
-            setChatName("");
-          } catch(err) {
-            setError(err);
-          }
-          
-        }}>
-        <b>Create a new chat</b>
         <div>
-            <label>
-              Chat Name:
-              <input
-                value={newChatName}
-                onChange={e => setChatName(e.target.value)}
-              />
-            </label>
-          </div>
-          <button type="submit" disabled={!newChatName}>Create</button>
-        </form>
+          <form onSubmit={async e => {
+            e.preventDefault();
+            if (!newChatName) {
+              setError("No chat name provided.");
+              return;
+            }
+
+            try {
+              const created = await createChat(token, newChatName);
+              setChats(prev => [created, ...prev]);
+              setActiveChatId(created.id);
+              setChatName("");
+            } catch (err) {
+              setError(err);
+            }
+
+          }}>
+            
+            <div class="create-chat">
+              <p>Create a new chat</p>
+              <label>
+                Chat Name: &nbsp;
+                <input
+                  value={newChatName}
+                  onChange={e => setChatName(e.target.value)}
+                />
+              </label>
+            
+            <button type="submit" disabled={!newChatName}>Create</button>
+            </div>
+          </form>
+        </div>
       </div>
-
-      
-      <p>You are logged in as: <b>{currentUser} ({currentUserId})  </b>
-        <button onClick={logout}>Logout</button>
-      </p>
-
     </>
   )
 }

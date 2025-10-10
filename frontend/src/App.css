@@ -1,0 +1,174 @@
+html {
+    font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+    background-color: white;
+}
+
+
+.header {
+    font-size: 20px;
+    display: flex;
+    padding-left: 1%;
+    justify-content: space-between;
+    padding: 10px;
+    margin: 50px 100px 50px 100px;
+    border: 1px solid;
+    border-radius: 18px;
+    align-items: center;
+}
+.header h1{
+    font-size: 50px;
+    display: flex;
+    padding-left: 1%;
+    justify-content: space-between;
+    font-weight: 600;
+}
+.header-left {
+    font-size: 30px;
+    display: flex;
+    flex-direction: column;
+}
+#error {
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    color: crimson;
+}
+#success {
+    margin: 0;
+    padding: 0;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    color: green;
+}
+#logout {
+    border-radius: 20px;
+    border: 1px solid rgb(163, 160, 160);
+}
+#logout:hover {
+    cursor: pointer;
+    background-color: rgb(193, 192, 192);
+}
+
+.body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px;
+    gap: 100px;
+    margin: 50px 0px 50px 0px;
+    flex-wrap: wrap;
+    border-radius: 10px;
+}
+#load-chat {
+    position: absolute;
+    position-anchor: --anchor-yourchat;
+    position-area: top center;
+    border: none;
+    font-size: 18px;
+    margin-bottom: 5px;
+    font-weight: bolder;
+    background-color: white;
+}
+.load-chats {
+    display: flex;
+    justify-content: left;
+    align-items: left;
+    padding: 10px;
+    border: 1px black solid;
+    flex-direction: column;
+    border-radius: 10px;
+    width: 200px;
+    height: 500px;
+    anchor-name: --anchor-yourchat;
+}
+.load-chats ul {
+  padding-left: 0;
+  margin: 0;
+}
+.load-chats li {
+    text-align: flex-start;
+    list-style-type: none;
+    padding: 12px 8px;
+    border-bottom: 1px solid #e1e4e8;
+    transition: background-color 0.2s ease-in-out;
+}
+.messages-list {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+
+.messages-list span {
+    font-size: 12px;
+}
+.current-chat-name {
+    position: absolute;
+    position-anchor: --anchor-currchat;
+    position-area: top center;
+    font-size: 18px;
+    margin-bottom: 5px;
+}
+.current-chat {
+    display: flex;
+    justify-content: left;
+    padding: 10px;
+    border: 1px black solid;
+    gap: 10px;
+    flex-direction: column;
+    height: 500px;
+    width: 40vw;
+    overflow: auto;
+    border-radius: 10px;
+    anchor-name: --anchor-currchat;
+}
+.message {
+    margin-bottom: 10px;
+}
+.current-chat form {
+  display: flex;
+  position: sticky;
+  justify-content: left;
+}
+.send-body {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 100px;
+    padding: 10px;
+    margin: 50px 0px 50px 0px;
+    flex-wrap: wrap;
+}
+.received-invites {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0px 10px 10px 10px;
+    border: 1px black solid;
+}
+.send-invite {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0px 10px 10px 10px;
+    border: 1px black solid;
+}
+.send-invite p{
+    font-size: 20px;
+    text-align: center;
+}
+.create-chat {
+    display: flex;
+    justify-content: center;
+    flex-direction: column;
+    align-items: left;
+    padding: 0px 10px 10px 10px;
+    border: 1px black solid;
+    gap: 10px;
+}
+.create-chat p {
+    font-size: 20px;
+    text-align: center;
+}
