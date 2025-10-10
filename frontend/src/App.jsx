@@ -28,6 +28,7 @@ export default function App() {
   const [notedraft, setnoteDraft] = useState("");
   const [error, setError] = useState("");
 
+  // Add account to database on signup.
   async function handleSignup(e) {
     e.preventDefault();
 
@@ -44,6 +45,7 @@ export default function App() {
     }
   }
 
+  // Verify username & password are correct
   async function onLogin(e) {
     e.preventDefault();
     try {
@@ -57,18 +59,23 @@ export default function App() {
     }
   }
 
+  // Clear success messages after 4 seconds
   useEffect(() => {
     if (!success) return;
     const t = setTimeout(() => setSuccess(""), 4000);
     return () => clearTimeout(t);
   }, [success]);
 
-useEffect(() => {
-  if (!error) return;
-  const t = setTimeout(() => setError(""), 4000);
-  return () => clearTimeout(t);
-}, [error]);
+  // Clear error messages after 4 seconds
+  useEffect(() => {
+    if (!error) return;
+    const t = setTimeout(() => setError(""), 4000);
+    return () => clearTimeout(t);
+  }, [error]);
 
+  // If user is logged in with JWT token,
+  // We must update all associated variables with that
+  // account's respective data
   useEffect(() => {
     if (!token) return;
     (async () => {
@@ -87,6 +94,8 @@ useEffect(() => {
     })();
   }, [token]);
 
+  // As long as we have a login token and a active chat selected,
+  // we should fetch the message chats every 3 seconds.
   useEffect(() => {
     if (!token || !activeChatId) return;
     let cancelled = false;
@@ -104,6 +113,7 @@ useEffect(() => {
     return () => { cancelled = true; clearInterval(t); };
   }, [token, activeChatId]);
 
+  // Websocket stuff for grabbing new messages
   useEffect(() => {
     if (!token || !activeChatId) return;
 
@@ -125,18 +135,7 @@ useEffect(() => {
     return () => ws.close();
   }, [token, activeChatId]);
 
-  async function onSend(e) {
-    e.preventDefault();
-    if (!draft.trim() || !activeChatId) return;
-    try {
-      const m = await sendMessage(token, activeChatId, draft.trim());
-      setMessages((prev) => [...prev, m]);
-      setDraft("");
-    } catch (e) {
-      setError(e.message);
-    }
-  }
-
+  // On logout, clear all variables associated with user.
   function logout() {
     setToken("");
     localStorage.removeItem("token");
@@ -154,8 +153,7 @@ useEffect(() => {
   ? invites
   : invites.filter(inv => Number(inv.receiver_id) === Number(currentUserId));
 
-
-
+  // If we do not have a login token, display the login page.
   if (!token) {
     return (
       <div>
@@ -208,6 +206,7 @@ useEffect(() => {
     )
   }
 
+  // Otherwise, if we are logged in, display the homepage.
   return (
     <>
       <h1 class="login" style={{marginTop: "50px"}}>Homepage</h1>
@@ -272,8 +271,8 @@ useEffect(() => {
           const now = new Date().toISOString();
 
           const newMsg = {
-            id: Math.random().toString(36).slice(2), // temp id
-            user: currentUser,                      // you already track this
+            id: Math.random().toString(36).slice(2),
+            user: currentUser, 
             text: draft,
             created_at: now,
           };
