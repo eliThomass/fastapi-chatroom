@@ -166,11 +166,12 @@ export default function App() {
   // If we do not have a login token, display the login page.
   if (!token) {
     return (
-      <div>
-        <h2 class="login">Login</h2>
-        {error && <div style={{color: "crimson"}}>{error}</div>}
-        {success && <div style={{ color: "green" }}>{success}</div>}
-          <div class="loginform">
+      <div class="loginbody">
+      <div class="login">
+        <h2>Login</h2>
+        <div id="error">{error}</div>
+        <div id="success">{success}</div>
+          <div>
             <form onSubmit={onLogin}>
             <input
               placeholder="username"
@@ -187,9 +188,9 @@ export default function App() {
           </form>
         </div>
 
-        <div style={{textAlign: "center", color: "darkcyan"}}>OR... create a <b> new account</b></div>
+        <div>Or... create a <b> new account</b></div>
 
-        <form class="signupform" onSubmit={handleSignup}>
+        <form onSubmit={handleSignup}>
           <input
             placeholder="username"
             type="username"
@@ -212,6 +213,7 @@ export default function App() {
         </form>
 
 
+      </div>
       </div>
     )
   }
