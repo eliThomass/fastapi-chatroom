@@ -2,6 +2,9 @@
 
 # Live Group Chat Web Application
 
+[![Group Chat App Demo Video](https://img.youtube.com/vi/oOdsWwjYlPY/maxresdefault.jpg)](https://www.youtube.com/watch?v=oOdsWwjYlPY)
+⬆️ Click to view demo video!
+
 A full-stack group chat app with JWT authentication, group membership & invitations, message history, and **real-time messaging** via WebSockets (or polling fallback).  
 Backend: **FastAPI + PostgreSQL + SQLAlchemy + JWT** · Frontend: **React (Vite)**
 
