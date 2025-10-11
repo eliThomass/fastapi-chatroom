@@ -96,23 +96,19 @@ export default function App() {
     })();
   }, [token]);
 
-  // As long as we have a login token and a active chat selected,
-  // we should fetch the message chats every 3 seconds.
+  // Load inital chat messages on selection
   useEffect(() => {
-    if (!token || !activeChatId) return;
-    let cancelled = false;
-
-    async function fetchMsgs() {
-      try {
-        const ms = await listMessages(token, activeChatId, 100);
-        if (!cancelled) setMessages(ms);
-      } catch (e) {
-        if (!cancelled) setError(e.message);
-      }
+    if (!token || !activeChatId) {
+      setMessages([]); // Clear messages if no chat is active
+      return;
     }
-    fetchMsgs();
-    const t = setInterval(fetchMsgs, 3000);
-    return () => { cancelled = true; clearInterval(t); };
+    listMessages(token, activeChatId, 100)
+      .then(ms => {
+        setMessages(ms);
+      })
+      .catch(err => {
+        setError(err.message);
+      });
   }, [token, activeChatId]);
 
   // Automatically scroll to bottom of chat (newest messages)
@@ -232,7 +228,7 @@ export default function App() {
           {success}
         </div>
         <div class="header-left">
-          Logged in as: &nbsp; <b>{currentUser}</b>
+          Logged in as: &nbsp; <b>{currentUser}({currentUserId})</b>
           <button id="logout" onClick={logout}>Logout</button>
         </div>
       </div>
@@ -287,20 +283,12 @@ export default function App() {
             e.preventDefault();
             if (!draft.trim()) return;
 
-            const now = new Date().toISOString();
-
-            const newMsg = {
-              id: Math.random().toString(36).slice(2),
-              user: currentUser,
-              text: draft,
-              created_at: now,
-            };
-            setMessages(prev => [...prev, newMsg]);
-
             try {
               await sendMessage(token, activeChatId, draft);
             } catch (err) {
               console.error(err);
+              setDraft(draft); 
+              setError("Failed to send message.");
             }
 
             setDraft("");

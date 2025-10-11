@@ -83,6 +83,7 @@ html {
     width: 200px;
     height: 500px;
     anchor-name: --anchor-yourchat;
+    overflow-y: auto;
 }
 .load-chats ul {
   padding-left: 0;
@@ -93,7 +94,8 @@ html {
     list-style-type: none;
     padding: 12px 8px;
     border-bottom: 1px solid #e1e4e8;
-    transition: background-color 0.2s ease-in-out;
+    overflow: auto;
+    overflow-y: auto;
 }
 .messages-list {
     flex-grow: 1;
@@ -189,4 +191,11 @@ html {
     height: 50vh;
     width: 50vw;
     border: 1px black solid;
+}
+.login form{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 5px;
 }
